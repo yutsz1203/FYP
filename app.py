@@ -9,10 +9,14 @@ transactions = st.Page("pages/transactions.py", title="Transactions")
 
 # Set up navigation
 pg = st.navigation(
-    [home_page, portfolio_overview, portfolio_returns, risk_analysis, transactions]
+    [
+        home_page,
+        portfolio_overview,
+        portfolio_returns,
+        risk_analysis,
+        transactions,
+    ]
 )
 
 # Run the selected page
 pg.run()
-
-st.set_page_config(layout="wide")

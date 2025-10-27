@@ -1,5 +1,6 @@
 import streamlit as st
 
+st.set_page_config(page_title="Home", page_icon="🏠", layout="centered")
 # Main page content
 st.title("Robo-advisor and Portfolio Tracking System")
 st.write(
@@ -15,4 +16,9 @@ st.markdown(
 )
 st.write(
     "By combining the robo-advisor and portfolio tracking components, the system aims to empower users with personalized investment advice and comprehensive tracking capabilities. This will enable users to make informed investment decisions, monitor their portfolios effectively, and optimize their investment strategies based on their financial goals and risk preferences."
+)
+st.markdown("### Functions to add ...")
+st.write("Taxes: Capital gain, Witholding (Dividend)")
+st.write(
+    "Incorporating taxes and dividends in calculation of portfolio values and returns"
 )
