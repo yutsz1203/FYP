@@ -1,37 +1,20 @@
-import yfinance as yf
-import mariadb
-import streamlit as st
-from curl_cffi import requests
 import csv
-from tqdm import tqdm
 import time
+from datetime import date
 
-SESSION = requests.Session(impersonate="chrome")
-HK_MAX = 9999
-US_MAX = 19161
-SECTOR_MAP = {
-    "Healthcare": 1,
-    "Financial Services": 2,
-    "Technology": 3,
-    "Industrials": 4,
-    "Consumer Cyclical": 5,
-    "Basic Materials": 6,
-    "Communication Services": 7,
-    "Real Estate": 8,
-    "Energy": 9,
-    "Consumer Defensive": 10,
-    "Utilities": 11,
-    "": 0,
-}
+import mariadb
+import mysql.connector
+import pandas as pd
+import streamlit as st
+import yfinance as yf
+from dateutil.relativedelta import relativedelta
+from sqlalchemy import create_engine
+from tqdm import tqdm
 
-CLASS_MAP = {
-    "Equity": 1,
-    "Bond": 2,
-    "Commodity": 3,
-    "Cryptocurrency": 4,
-    "ETF": 5,
-    "Fund": 6,
-}
+from const import CLASS_MAP, CURRENCIES, SECTOR_MAP, SESSION
+
+db_connection_str = "mysql+mysqlconnector://root:8888@192.168.50.31:6608/FYP"
+engine = create_engine(db_connection_str)
 
 
 def db_connect():
@@ -155,9 +138,60 @@ def Updater(conn):
         # print(ticker, price, SECTOR_MAP[sector], assetClass)
 
 
-# read_csv()
-conn = db_connect()
-# print(conn)
-# Test()
-# Screener(conn)
-Updater(conn)
+def update_rates(currencies):
+    try:
+        connection = mysql.connector.connect(
+            host="192.168.50.31",
+            port=6608,
+            user="root",
+            passwd="8888",
+            database="FYP",
+        )
+        if connection.is_connected():
+            print("Successfully connected to MySQL database.")
+
+        cursor = connection.cursor()
+        dfs = []
+        for currency_ticker, currency in currencies:
+            print(f"Processing {currency}...")
+            cursor.execute(
+                f"SELECT date FROM Rate WHERE currency = '{currency}' ORDER BY date DESC LIMIT 1"
+            )
+            results = cursor.fetchone()
+            if results:
+                start = results[0] - relativedelta(days=2)
+                rates = yf.download(
+                    currency_ticker, start=start, end=date.today(), interval="1d"
+                )
+            else:
+                rates = yf.download(currency_ticker, period="10y", interval="1d")
+                start = rates.index.min().date()
+
+            if not rates.empty:
+                df = rates["Close"].copy()
+                df.columns = ["rate"]
+                df = df.reindex(pd.date_range(start=start, end=date.today(), freq="D"))
+                df["rate"] = df["rate"].ffill()
+                df["currency"] = currency
+                df["date"] = df.index
+                df = df[df["date"].dt.date > start + relativedelta(days=2)]
+                dfs.append(df)
+            else:
+                print(f"Rates ({currency}) up to date.")
+        final = pd.concat(dfs, ignore_index=True)
+        final.to_sql(name="Rate", con=engine, if_exists="append", index=False)
+        engine.dispose()
+
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+
+
+if __name__ == "__main__":
+    # read_csv()
+    conn = db_connect()
+    # print(conn)
+    # Test()
+    # Screener(conn)
+    Updater(conn)
+
+    update_rates(CURRENCIES)
