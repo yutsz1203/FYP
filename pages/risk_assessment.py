@@ -65,6 +65,7 @@ Q9_QS_MAP = {
     "Less predictable; Uncertainty": 4,
     "Highly unpredictable; Vary Outcomes": 5,
 }
+
 COMMODITIES_MAP = {
     "Gold": "GLD",
     "Silver": "SLV",
@@ -95,20 +96,23 @@ SECTOR = list(SECTOR_MAP.keys())
 sector_checkboxs = [True] * 11
 
 
-def validate():
-    if not (
-        Inv_Q1
-        and Inv_Q2
-        and Inv_Q3
-        and Inv_Q4
-        and Inv_Q5
-        and Inv_Q6
-        and Inv_Q7
-        and Inv_Q8
-        and Inv_Q9
-    ) or not (US_checkbox or HK_checkbox):
+def validate(Inv_Q, US, HK, sector):
+    if ( None in Inv_Q) or not (US or HK) or (sum(x is not None for x in sector) <= 7):
         return False
     return True
+
+
+def evaluation(score: int):
+    if 9 <= score <= 15:
+        return "Capital Preservation"
+    if 16 <= score <= 23:
+        return "Conservative"
+    if 24 <= score <= 31:
+        return "Balanced"
+    if 32 <= score <= 38:
+        return "Growth"
+    if 39 <= score <= 45:
+        return "Agressive Growth"
 
 
 _ = st.title("Risk Assessment")
@@ -122,7 +126,7 @@ with st.form("risk_assessment"):
     US_checkbox = checkbox_col[0].checkbox("US market")
     HK_checkbox = checkbox_col[1].checkbox("HK market")
 
-    st.write("Which commodities to include?")
+    st.write("Which commodities to include? (Can be empty)")
     checkbox_col2 = st.columns([1, 1, 1, 1])
     for i in range(4):
         commodities_checkboxs[i] = checkbox_col2[i].checkbox(COMMODITIES[i])
@@ -130,7 +134,7 @@ with st.form("risk_assessment"):
     for i in range(4, 6):
         commodities_checkboxs[i] = checkbox_col21[i - 4].checkbox(COMMODITIES[i])
 
-    st.write("Which sectors to include? (Max 3.)")
+    st.write("Which sectors to include? (Max 3. Can be empty)")
     checkbox_col3 = st.columns([1, 1, 1, 1])
     for i in range(4):
         sector_checkboxs[i] = checkbox_col3[i].checkbox(SECTOR[i])
@@ -195,12 +199,11 @@ with st.form("risk_assessment"):
         Q9_QS_MAP.keys(),
         index=None,
     )
-
     submit_button = st.form_submit_button("Submit")
 
 if submit_button:
-    if not validate():
-        print("dd")
+    if not validate([Inv_Q1, Inv_Q2, Inv_Q3, Inv_Q4, Inv_Q5, Inv_Q6, Inv_Q7, Inv_Q8, Inv_Q9], US_checkbox, HK_checkbox, sector_checkboxs):
+        _ = st.warning("Please fill in the questions accordingly")
     else:
         score = 0
         score += Q1_QS_MAP[Inv_Q1]
@@ -212,4 +215,18 @@ if submit_button:
         score += Q7_QS_MAP[Inv_Q7]
         score += Q8_QS_MAP[Inv_Q8]
         score += Q9_QS_MAP[Inv_Q9]
-        print(score)
+        resultScore = evaluation(score)
+        _ = st.success(f"Success! Your risk preference is : {resultScore}")
+
+        resultEtf = []
+        if US_checkbox:
+            resultEtf.append("VOO")
+        if HK_checkbox:
+            resultEtf.append("2800.hk")
+        for i in range(len(sector_checkboxs)):
+            if sector_checkboxs[i]:
+                resultEtf.append(SECTOR_MAP[list(SECTOR_MAP.keys())[i]])
+        for i in range(len(commodities_checkboxs)):
+            if commodities_checkboxs[i]:
+                resultEtf.append(COMMODITIES_MAP[list(COMMODITIES_MAP.keys())[i]])
+        print(resultEtf)
