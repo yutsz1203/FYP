@@ -3,6 +3,8 @@ import pandas as pd
 import yfinance as yf
 from sqlalchemy import create_engine
 
+from const import SESSION
+
 db_connection_str = "mysql+mysqlconnector://root:8888@192.168.50.31:6608/FYP"
 # Create the SQLAlchemy engine
 engine = create_engine(db_connection_str)
@@ -30,7 +32,11 @@ def get_events(ticker_list):
     for ticker in ticker_list:
         print(f"--- {ticker} Events ---")
         # Access dividend/split data
-        df = tickers.tickers[ticker].actions
+        try:
+            df = tickers.tickers[ticker].actions
+        except TypeError as e:
+            print(e)
+            continue
         df.index = df.index.date
         df["symbol"] = ticker
         df["date"] = df.index
@@ -80,5 +86,6 @@ def get_holdings(_conn, cache_key=None) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    pass
+    ticker = yf.Ticker("HSBA.L", session=SESSION)
+    print(ticker.analyst_price_targets)
     # get_events(["VOO", "RDDT", "TSLA", "2628.HK", "SGOV", "GLD", "IBIT", "NVDA"])

@@ -114,9 +114,6 @@ def assign_currency(df: pd.DataFrame, symbol_col="symbol") -> pd.DataFrame:
     """
     result = df.copy()
     result["currency"] = "USD"
-    result["pence_adjusted"] = (
-        False  # for adjusting .L stocks as they are displaying in pence, instead of pound
-    )
 
     exchange_currency_map = {
         r"\.HK$": "HKD",
@@ -129,8 +126,5 @@ def assign_currency(df: pd.DataFrame, symbol_col="symbol") -> pd.DataFrame:
     for pattern, currency in exchange_currency_map.items():
         mask = result[symbol_col].str.contains(pattern, regex=True, na=False)
         result.loc[mask, "currency"] = currency
-
-        if currency == "GBP":
-            result.loc[mask, "pence_adjusted"] = True
 
     return result

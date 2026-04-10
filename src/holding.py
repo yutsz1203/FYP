@@ -60,6 +60,10 @@ def get_portfolio_value(assets, start, base_currency="USD") -> pd.DataFrame:
         .reset_index()
     )
 
+    daily_holding_df.loc[
+        daily_holding_df["currency"] == "GBP", ["value_after_tx", "value_before_tx"]
+    ] /= 100  # Adjust for pence
+
     daily_holding_df["base_value_after_tx"] = convert_to_base(
         df=daily_holding_df,
         value_col="value_after_tx",
@@ -103,6 +107,9 @@ def get_holdings(base_currency: str = "USD") -> pd.DataFrame:
     """
     holdings_df = fetch_holdings()
     holdings_df = assign_currency(holdings_df, "Symbol")
+    holdings_df.loc[
+        holdings_df["currency"] == "GBP", "Cost Basis"
+    ] /= 100  # Adjust for pence
     holdings_df["date"] = date.today()
     holdings_df["Cost Basis"] = convert_to_base(
         df=holdings_df,
@@ -113,6 +120,9 @@ def get_holdings(base_currency: str = "USD") -> pd.DataFrame:
         rates_pivot=rates_pivot,
     )
     holdings_df["Market Value"] = holdings_df["Current Price"] * holdings_df["Position"]
+    holdings_df.loc[
+        holdings_df["currency"] == "GBP", "Market Value"
+    ] /= 100  # Adjust for pence
     holdings_df["Market Value"] = convert_to_base(
         df=holdings_df,
         value_col="Market Value",
@@ -159,6 +169,9 @@ def build_daily_holding() -> pd.DataFrame:
         .rename(columns={"amount": "cumulative_split_ratio"})
     )
     tx_df = tx_df.merge(cumulative_ratios, on=["symbol", "date"], how="left")
+    tx_df["cumulative_split_ratio"] = pd.to_numeric(
+        tx_df["cumulative_split_ratio"], errors="coerce"
+    )
     tx_df["cumulative_split_ratio"] = tx_df["cumulative_split_ratio"].fillna(1.0)
     tx_df["net_quantity"] = tx_df["net_quantity"] * tx_df["cumulative_split_ratio"]
 
@@ -166,9 +179,9 @@ def build_daily_holding() -> pd.DataFrame:
     daily_holdings_df = (
         tx_df.groupby(by=["date", "symbol"])["net_quantity"].sum().reset_index()
     )
+    # Add currencies for .JPY, .EU, .UK, etc...
     daily_holdings_df = assign_currency(daily_holdings_df)
 
-    # Add currencies for .JPY, .EU, .UK, etc...
     daily_holdings_df.set_index(["date", "symbol"], inplace=True)
 
     today = pd.Timestamp.today().date()

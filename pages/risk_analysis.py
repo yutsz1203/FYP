@@ -6,7 +6,7 @@ import seaborn as sns
 import streamlit as st
 
 from const import BENCHMARK_MAP, BENCHMARKS, CURRENCY_SIGN_MAP
-from helpers import base_currency_format, color_val, format_series, period_select_box
+from helpers import base_currency_format, color, format_series, period_select_box
 from src.holding import get_holdings
 from src.risk_analysis_src import (
     factor_analysis,
@@ -97,14 +97,12 @@ with tab2:
 
     df = pd.merge(beta_df, betas, on="symbol", how="inner")
     df["Weight"] = round(df["Weight"] * 100, 2)
-    df.columns = ["Symbol", "Beta", "Weight (%)"]
+    df.columns = ["Symbol", "Weight (%)", "Beta"]
+    df = df[["Symbol", "Beta", "Weight (%)"]]
     st.dataframe(df, hide_index=True)
 
     portfolio_beta = (df["Beta"] * (df["Weight (%)"] / 100)).sum()
     st.markdown(f"### Portfolio Beta: {portfolio_beta:.2f}")
-
-    url = "https://www.msci.com/indexes/index/990100"
-    st.write("Note: Betas are measured against the [MSCI World Index](%s)." % url)
 
 # Maximum drawdown
 with tab3:
@@ -227,7 +225,7 @@ with tab6:
         "Profitability (RMW)",
         "Investment (CMA)",
     ]
-    styled = factors_df.style.format("{:.4f}").map(color_val, subset=["p-value"])
+    styled = factors_df.style.format("{:.4f}").map(color, subset=["p-value"])
     st.dataframe(styled)
 
     st.markdown(

@@ -41,6 +41,7 @@ def insert_db(conn, ticker, price, sector, assetClass):
             (ticker, price, sector, assetClass),
         )
     except mariadb.Error as e:
+        print(e)
         return update_db(conn, ticker, price)
 
 
@@ -138,52 +139,82 @@ def Updater(conn):
         # print(ticker, price, SECTOR_MAP[sector], assetClass)
 
 
-def update_rates(currencies):
-    try:
-        connection = mysql.connector.connect(
-            host="192.168.50.31",
-            port=6608,
-            user="root",
-            passwd="8888",
-            database="FYP",
+def update_rates(conn, currencies):
+    dfs = []
+    for currency_ticker, currency in currencies:
+        print(f"Processing {currency}...")
+        conn.execute(
+            f"SELECT date FROM Rate WHERE currency = '{currency}' ORDER BY date DESC LIMIT 1"
         )
-        if connection.is_connected():
-            print("Successfully connected to MySQL database.")
-
-        cursor = connection.cursor()
-        dfs = []
-        for currency_ticker, currency in currencies:
-            print(f"Processing {currency}...")
-            cursor.execute(
-                f"SELECT date FROM Rate WHERE currency = '{currency}' ORDER BY date DESC LIMIT 1"
+        results = conn.fetchone()
+        if results:
+            start = results[0] - relativedelta(days=2)
+            rates = yf.download(
+                currency_ticker, start=start, end=date.today(), interval="1d"
             )
-            results = cursor.fetchone()
-            if results:
-                start = results[0] - relativedelta(days=2)
-                rates = yf.download(
-                    currency_ticker, start=start, end=date.today(), interval="1d"
-                )
-            else:
-                rates = yf.download(currency_ticker, period="10y", interval="1d")
-                start = rates.index.min().date()
+        else:
+            rates = yf.download(currency_ticker, period="10y", interval="1d")
+            start = rates.index.min().date()
+        if not rates.empty:
+            df = rates["Close"].copy()
+            df.columns = ["rate"]
+            df = df.reindex(pd.date_range(start=start, end=date.today(), freq="D"))
+            df["rate"] = df["rate"].ffill()
+            df["currency"] = currency
+            df["date"] = df.index
+            df = df[df["date"].dt.date > start + relativedelta(days=2)]
+            dfs.append(df)
+        if df.empty:
+            print(f"Rates ({currency}) up to date.")
+    final = pd.concat(dfs, ignore_index=True)
+    final.to_sql(name="Rate", con=engine, if_exists="append", index=False)
+    engine.dispose()
 
-            if not rates.empty:
-                df = rates["Close"].copy()
-                df.columns = ["rate"]
-                df = df.reindex(pd.date_range(start=start, end=date.today(), freq="D"))
-                df["rate"] = df["rate"].ffill()
-                df["currency"] = currency
-                df["date"] = df.index
-                df = df[df["date"].dt.date > start + relativedelta(days=2)]
-                dfs.append(df)
-            else:
-                print(f"Rates ({currency}) up to date.")
-        final = pd.concat(dfs, ignore_index=True)
-        final.to_sql(name="Rate", con=engine, if_exists="append", index=False)
+
+def get_events(conn, ticker_list):
+    tickers = yf.Tickers(" ".join(ticker_list))
+
+    list_of_dfs = []
+    # Loop through tickers to get calendar events
+    for ticker in ticker_list:
+        print(f"--- {ticker} Events ---")
+        # Access split history
+        try:
+            df = tickers.tickers[ticker].actions
+        except TypeError as e:
+            print(f"No stock actions data for {ticker}.")
+            continue
+        df.index = df.index.date
+        df["symbol"] = ticker
+        df["date"] = df.index
+        df = df[df["Dividends"] == 0]
+
+        conn.execute(
+            f"SELECT date FROM Stock_Event WHERE symbol = '{ticker}' ORDER BY date DESC LIMIT 1"
+        )
+        results = conn.fetchone()
+
+        if results:
+            df = df[df["date"] > results[0]]
+
+        if df.empty:
+            print(f"Stock splits record of {ticker} already up to date.")
+            continue
+
+        df.rename(columns={"Stock Splits": "amount"}, inplace=True)
+
+        df["eventType"] = 0
+
+        df = df[["symbol", "date", "eventType", "amount"]]
+
+        list_of_dfs.append(df)
+    if len(list_of_dfs) > 0:
+        df = pd.concat([d for d in list_of_dfs if not d.empty], ignore_index=True)
+
+        df.to_sql(name="Stock_Event", con=engine, if_exists="append", index=False)
         engine.dispose()
 
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
+    return df
 
 
 if __name__ == "__main__":
@@ -192,6 +223,20 @@ if __name__ == "__main__":
     # print(conn)
     # Test()
     # Screener(conn)
+    update_rates(conn, CURRENCIES)
     Updater(conn)
 
-    update_rates(CURRENCIES)
+    # get_events(
+    #     conn,
+    #     [
+    #         "2800.HK",
+    #         "300750.SZ",
+    #         "600519.SS",
+    #         "7203.T",
+    #         "ASML.AS",
+    #         "BND",
+    #         "GLD",
+    #         "HSBA.L",
+    #         "IBIT",
+    #     ],
+    # )

@@ -55,6 +55,7 @@ def fetch_transaction() -> pd.DataFrame:
     return tx_df
 
 
+@st.cache_data(show_spinner=False)
 def fetch_stock_event() -> pd.DataFrame:
     """
     symbol, date, eventType (0 for split, 1 for dividend), amount

@@ -6,6 +6,7 @@ from const import BASE_CURRENCIES, CURRENCY_SIGN_MAP, PERIODS
 from helpers import (
     adjust_period,
     base_currency_format,
+    color,
     create_chart,
     get_start_date,
 )
@@ -93,6 +94,9 @@ with tab1:
             "Cost Basis": "{:,.2f}",
             "Unrealised P&L": "{:,.2f}",
         }
+    )
+    styled_assets_df = styled_assets_df.map(
+        color, subset=["Unrealised P&L"], type="holding"
     )
     total_p_and_l = assets_df["Unrealised P&L"].sum()
     if total_p_and_l < 0:

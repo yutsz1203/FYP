@@ -115,8 +115,11 @@ def format_series(series):
     return series
 
 
-def color_val(val):
-    color = "red" if val > 0.05 else "green"
+def color(val, type="p-val"):
+    if type == "p-val":
+        color = "red" if val > 0.05 else "green"
+    else:
+        color = "red" if val < 0 else "green"
     return f"color: {color}"
 
 

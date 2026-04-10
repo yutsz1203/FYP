@@ -1,11 +1,12 @@
 import mariadb
+import pandas as pd
 import streamlit as st
 import yfinance as yf
 
 from const import CLASS_MAP, SECTOR_MAP, SESSION
-from update_db import insert_db
+from update_db import get_events, insert_db
 
-from .db import fetch_holdings
+from .db import fetch_holdings, fetch_stock_event
 
 
 def get_tx(_conn):
@@ -33,8 +34,16 @@ def insert_tx(form, conn):
             "INSERT INTO FYP.Transaction VALUES (?, ?, ?, ?, ?, ?, ?, ?)", form
         )
         holdings_df = fetch_holdings()
-        symbol, price, quantity, action, commission = form[2:-1]
+        tx_date, symbol, price, quantity, action, commission = form[1:-1]
         action = 1 - 2 * action  # buy -> 0 to 1, sell -> 1 to -1
+
+        stock_events = fetch_stock_event()
+        if symbol not in stock_events["symbol"].values:
+            stock_events = get_events(conn, [symbol])
+
+        quantity, price = normalize_historical_transaction(
+            stock_events, symbol, tx_date, quantity, price
+        )
 
         if symbol in holdings_df["Symbol"].values:
             new_quantity = holdings_df.loc[
@@ -103,7 +112,8 @@ def insert_new_asset(conn, symbol: str):
         # Sector 13: Multi (has sector weightings data)
         sector = 13 if sector_weightings else 12
 
-        cleaned_category = info["category"].strip().lower()
+        category = info.get("category", "")
+        cleaned_category = category.strip().lower()
         bond_position = fund_data.asset_classes.get("bondPosition", 0)
 
         if not bond_position:
@@ -128,3 +138,20 @@ def insert_new_asset(conn, symbol: str):
     print(
         f"Inserted {symbol}. Price: {price}; Sector: {sector}; Asset Class: {assetClass}."
     )
+
+
+def normalize_historical_transaction(stock_events, ticker, tx_date, tx_qty, tx_price):
+    """
+    Converts historical units to current units based on split history.
+    """
+    cumulative_factor = 1.0
+    stock_events = stock_events[
+        (stock_events["symbol"] == ticker) & (stock_events["date"] > tx_date)
+    ]
+    if not stock_events.empty:
+        cumulative_factor *= stock_events["amount"].prod()
+
+    normalized_qty = tx_qty * cumulative_factor
+    normalized_price = tx_price / cumulative_factor
+
+    return normalized_qty, normalized_price
