@@ -1,37 +1,20 @@
-import yfinance as yf
-import mariadb
-import streamlit as st
-from curl_cffi import requests
 import csv
-from tqdm import tqdm
 import time
+from datetime import date
 
-SESSION = requests.Session(impersonate="chrome")
-HK_MAX = 9999
-US_MAX = 19161
-SECTOR_MAP = {
-    "Healthcare": 1,
-    "Financial Services": 2,
-    "Technology": 3,
-    "Industrials": 4,
-    "Consumer Cyclical": 5,
-    "Basic Materials": 6,
-    "Communication Services": 7,
-    "Real Estate": 8,
-    "Energy": 9,
-    "Consumer Defensive": 10,
-    "Utilities": 11,
-    "": 0,
-}
+import mariadb
+import mysql.connector
+import pandas as pd
+import streamlit as st
+import yfinance as yf
+from dateutil.relativedelta import relativedelta
+from sqlalchemy import create_engine
+from tqdm import tqdm
 
-CLASS_MAP = {
-    "Equity": 1,
-    "Bond": 2,
-    "Commodity": 3,
-    "Cryptocurrency": 4,
-    "ETF": 5,
-    "Fund": 6,
-}
+from const import CLASS_MAP, CURRENCIES, SECTOR_MAP, SESSION
+
+db_connection_str = "mysql+mysqlconnector://root:8888@192.168.50.31:6608/FYP"
+engine = create_engine(db_connection_str)
 
 
 def db_connect():
@@ -58,6 +41,7 @@ def insert_db(conn, ticker, price, sector, assetClass):
             (ticker, price, sector, assetClass),
         )
     except mariadb.Error as e:
+        print(e)
         return update_db(conn, ticker, price)
 
 
@@ -155,9 +139,104 @@ def Updater(conn):
         # print(ticker, price, SECTOR_MAP[sector], assetClass)
 
 
-# read_csv()
-conn = db_connect()
-# print(conn)
-# Test()
-# Screener(conn)
-Updater(conn)
+def update_rates(conn, currencies):
+    dfs = []
+    for currency_ticker, currency in currencies:
+        print(f"Processing {currency}...")
+        conn.execute(
+            f"SELECT date FROM Rate WHERE currency = '{currency}' ORDER BY date DESC LIMIT 1"
+        )
+        results = conn.fetchone()
+        if results:
+            start = results[0] - relativedelta(days=2)
+            rates = yf.download(
+                currency_ticker, start=start, end=date.today(), interval="1d"
+            )
+        else:
+            rates = yf.download(currency_ticker, period="10y", interval="1d")
+            start = rates.index.min().date()
+        if not rates.empty:
+            df = rates["Close"].copy()
+            df.columns = ["rate"]
+            df = df.reindex(pd.date_range(start=start, end=date.today(), freq="D"))
+            df["rate"] = df["rate"].ffill()
+            df["currency"] = currency
+            df["date"] = df.index
+            df = df[df["date"].dt.date > start + relativedelta(days=2)]
+            dfs.append(df)
+        if df.empty:
+            print(f"Rates ({currency}) up to date.")
+    final = pd.concat(dfs, ignore_index=True)
+    final.to_sql(name="Rate", con=engine, if_exists="append", index=False)
+    engine.dispose()
+
+
+def get_events(conn, ticker_list):
+    tickers = yf.Tickers(" ".join(ticker_list))
+
+    list_of_dfs = []
+    # Loop through tickers to get calendar events
+    for ticker in ticker_list:
+        print(f"--- {ticker} Events ---")
+        # Access split history
+        try:
+            df = tickers.tickers[ticker].actions
+        except TypeError as e:
+            print(f"No stock actions data for {ticker}.")
+            continue
+        df.index = df.index.date
+        df["symbol"] = ticker
+        df["date"] = df.index
+        df = df[df["Dividends"] == 0]
+
+        conn.execute(
+            f"SELECT date FROM Stock_Event WHERE symbol = '{ticker}' ORDER BY date DESC LIMIT 1"
+        )
+        results = conn.fetchone()
+
+        if results:
+            df = df[df["date"] > results[0]]
+
+        if df.empty:
+            print(f"Stock splits record of {ticker} already up to date.")
+            continue
+
+        df.rename(columns={"Stock Splits": "amount"}, inplace=True)
+
+        df["eventType"] = 0
+
+        df = df[["symbol", "date", "eventType", "amount"]]
+
+        list_of_dfs.append(df)
+    if len(list_of_dfs) > 0:
+        df = pd.concat([d for d in list_of_dfs if not d.empty], ignore_index=True)
+
+        df.to_sql(name="Stock_Event", con=engine, if_exists="append", index=False)
+        engine.dispose()
+
+    return df
+
+
+if __name__ == "__main__":
+    # read_csv()
+    conn = db_connect()
+    # print(conn)
+    # Test()
+    # Screener(conn)
+    update_rates(conn, CURRENCIES)
+    Updater(conn)
+
+    # get_events(
+    #     conn,
+    #     [
+    #         "2800.HK",
+    #         "300750.SZ",
+    #         "600519.SS",
+    #         "7203.T",
+    #         "ASML.AS",
+    #         "BND",
+    #         "GLD",
+    #         "HSBA.L",
+    #         "IBIT",
+    #     ],
+    # )

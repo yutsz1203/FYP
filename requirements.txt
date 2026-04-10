@@ -61,13 +61,14 @@ pyarrow
 pycparser==2.22
 pydeck==0.9.1
 Pygments==2.19.2
+PyPortfolioOpt
 pyparsing==3.2.3
 python-dateutil==2.9.0.post0
 pytz==2025.2
 pyzmq==27.0.2
 QuantStats==0.0.77
 referencing==0.36.2
-requests==2.32.4
+requests<2.32
 rpds-py==0.27.1
 scipy
 seaborn==0.13.2
@@ -86,8 +87,8 @@ traitlets==5.14.3
 typing_extensions==4.14.1
 tqdm
 tzdata==2025.2
-urllib3==2.5.0
+urllib3<2.0
 wcwidth==0.2.13
 websockets==15.0.1
-yfinance==0.2.65
+yfinance
 zipp==3.23.0
