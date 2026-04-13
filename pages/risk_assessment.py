@@ -96,7 +96,9 @@ SECTOR = list(SECTOR_MAP.keys())
 sector_checkboxs = [True] * 11
 
 
-def validate(Inv_Q, US, HK, XUS, sector):
+def validate(Inv_Q, US, HK, XUS, sector, value):
+    if value <= 1:
+        return False
     if ( None in Inv_Q) or not (US or HK or XUS) or (sum(x is not None for x in sector) <= 7):
         return False
     return True
@@ -120,6 +122,9 @@ st.write("Risk Assessment page to evaluate your tolerance and financial goal")
 tab1, tab2 = st.tabs(["Risk Evaluation", "Financial Goal"])
 
 with st.form("risk_assessment"):
+    st.write("What is your estimated total investment value?")
+    total_invest = st.number_input("Investment Value", format="%d", step=1, min_value=1, value=None)
+
     st.write("Which markets to include?")
 
     checkbox_col = st.columns([1, 1, 1])
@@ -203,7 +208,7 @@ with st.form("risk_assessment"):
     submit_button = st.form_submit_button("Submit")
 
 if submit_button:
-    if not validate([Inv_Q1, Inv_Q2, Inv_Q3, Inv_Q4, Inv_Q5, Inv_Q6, Inv_Q7, Inv_Q8, Inv_Q9], US_checkbox, HK_checkbox, sector_checkboxs):
+    if not validate([Inv_Q1, Inv_Q2, Inv_Q3, Inv_Q4, Inv_Q5, Inv_Q6, Inv_Q7, Inv_Q8, Inv_Q9], US_checkbox, HK_checkbox, Global_checkbox,sector_checkboxs, total_invest):
         _ = st.warning("Please fill in the questions accordingly")
     else:
         score = 0
