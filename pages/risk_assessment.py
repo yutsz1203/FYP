@@ -96,8 +96,8 @@ SECTOR = list(SECTOR_MAP.keys())
 sector_checkboxs = [True] * 11
 
 
-def validate(Inv_Q, US, HK, sector):
-    if ( None in Inv_Q) or not (US or HK) or (sum(x is not None for x in sector) <= 7):
+def validate(Inv_Q, US, HK, XUS, sector):
+    if ( None in Inv_Q) or not (US or HK or XUS) or (sum(x is not None for x in sector) <= 7):
         return False
     return True
 
@@ -122,9 +122,10 @@ tab1, tab2 = st.tabs(["Risk Evaluation", "Financial Goal"])
 with st.form("risk_assessment"):
     st.write("Which markets to include?")
 
-    checkbox_col = st.columns([1, 1])
+    checkbox_col = st.columns([1, 1, 1])
     US_checkbox = checkbox_col[0].checkbox("US market")
     HK_checkbox = checkbox_col[1].checkbox("HK market")
+    Global_checkbox = checkbox_col[2].checkbox("Global market (exclude US)")
 
     st.write("Which commodities to include? (Can be empty)")
     checkbox_col2 = st.columns([1, 1, 1, 1])
@@ -223,6 +224,8 @@ if submit_button:
             resultEtf.append("VOO")
         if HK_checkbox:
             resultEtf.append("2800.hk")
+        if Global_checkbox:
+            resultEtf.append("VXUS")
         for i in range(len(sector_checkboxs)):
             if sector_checkboxs[i]:
                 resultEtf.append(SECTOR_MAP[list(SECTOR_MAP.keys())[i]])

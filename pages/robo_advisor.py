@@ -8,6 +8,8 @@ import streamlit as st
 from const import RETURN_TEXT
 from helpers import adjust_period, create_chart
 from src.mpt import get_optimal_weights, get_optimised_performance
+from src.holding import get_holdings
+from src.rebalance import rebalance_check, rebalance_NoSell, rebalance_Sell
 
 
 @st.cache_data(show_spinner=False)
@@ -16,12 +18,68 @@ def historical_return(tickers):
     return returns
 
 
+@st.dialog("Rebalancing")
+def rebalance_dialog(current, target):
+    col1, col2 = st.columns([3, 2], vertical_alignment="center")
+    with col1:
+        st.write("Rebalance your portfolio")
+    with col2:
+        sell = st.toggle("With Selling")
+    if sell:
+        rebalance_df = rebalance_Sell(current, target)
+        st.write(":red[**Sell**]")
+        sell_df = rebalance_df[rebalance_df["Investment Action"] < 0]
+        sell_df["Investment Action"] = -sell_df["Investment Action"]
+        st.dataframe(
+            sell_df,
+            hide_index=True,
+            column_config={
+                "Investment Action": st.column_config.NumberColumn(
+                    "Buy", format="-$%.2f"
+                )
+            },
+        )
+        st.write(":green[**Buy**]")
+        buy_df = rebalance_df[rebalance_df["Investment Action"] > 0]
+        st.dataframe(
+            buy_df,
+            hide_index=True,
+            column_config={
+                "Investment Action": st.column_config.NumberColumn(
+                    "Buy", format="$%.2f"
+                )
+            },
+        )
+    else:
+        rebalance_df = rebalance_NoSell(current, target)
+        rebalance_df.loc[-1] = ["Total", rebalance_df["Investment Action"].sum()]
+        st.dataframe(
+            data=rebalance_df,
+            hide_index=True,
+            column_config={
+                "Investment Action": st.column_config.NumberColumn(
+                    "Buy", format="$%.2f"
+                )
+            },
+        )
+
+
+holdings_df = get_holdings("HKD")
 weights_df = get_optimal_weights()
 weights_df = weights_df[weights_df["Weight"] != 0]
+rebalance = rebalance_check(holdings_df[["Symbol", "Weight"]], weights_df)
 ret, std, sharpe = get_optimised_performance()
 
 st.set_page_config(page_icon="💼", layout="centered")
 st.title("💼 Robo Advisor")
+if rebalance:
+    st.warning("Rebalancing available")
+    if st.button("Show rebalance", type="primary"):
+        rebalance_dialog(
+            holdings_df[["Symbol", "Weight", "Market Value", "Current Price"]],
+            weights_df,
+        )
+
 st.markdown("### Optimised Portfolio")
 st.write("Risk Preference: Moderate")
 col1, col2, col3 = st.columns(3)

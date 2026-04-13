@@ -25,6 +25,7 @@ period = st.pills("Time period", PERIODS, default=PERIODS[6])
 
 # Build holdings_df
 holdings_df = get_holdings(base_currency)
+# print(holdings_df)
 assets = holdings_df["Symbol"].to_list()
 
 total_portfolio_value = holdings_df["Market Value"].sum()
