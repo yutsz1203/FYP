@@ -73,9 +73,10 @@ COMMODITIES_MAP = {
     "Industrial Metals": "DBB",
     "Agriculture": "DBA",
     "Broad": "DJP",
+    "Bitcoin" : "IBIT",
 }
 COMMODITIES = list(COMMODITIES_MAP.keys())
-commodities_checkboxs = [True] * 6
+commodities_checkboxs = [True] * 7
 
 SECTOR_MAP = dict(
     [
@@ -137,7 +138,7 @@ with st.form("risk_assessment"):
     for i in range(4):
         commodities_checkboxs[i] = checkbox_col2[i].checkbox(COMMODITIES[i])
     checkbox_col21 = st.columns([1, 1, 1, 1])
-    for i in range(4, 6):
+    for i in range(4, 7):
         commodities_checkboxs[i] = checkbox_col21[i - 4].checkbox(COMMODITIES[i])
 
     st.write("Which sectors to include? (Max 3. Can be empty)")
