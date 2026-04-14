@@ -5,7 +5,7 @@ import quantstats as qs
 import seaborn as sns
 import streamlit as st
 
-from const import BENCHMARKS, CURRENCY_SIGN_MAP
+from const import BENCHMARKS, BENCHMARKS_INDEX, CURRENCY_SIGN_MAP
 from helpers import (
     adjust_period,
     base_currency_format,
@@ -94,8 +94,9 @@ with tab2:
 
     indv_returns = get_returns(symbols, period=period, interval="1mo")
     benchmark_returns = get_returns(
-        list(BENCHMARKS.values()), period=period, interval="1mo"
+        list(BENCHMARKS_INDEX.values()), period=period, interval="1mo"
     )
+
     betas = get_betas(indv_returns, benchmark_returns)
     beta_df = holdings[["symbol", "Weight"]]
 

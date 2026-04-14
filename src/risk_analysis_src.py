@@ -58,7 +58,6 @@ def get_returns(symbols, period="1y", interval="1d", log=False):
     else:
         returns = prices.pct_change()
     returns = returns.dropna(how="all").iloc[1:]
-    returns = returns.fillna(0)
     return returns
 
 
@@ -83,7 +82,7 @@ def get_betas(returns, benchmark_returns):
     betas = []
     exchange_benchmark_map = {
         r"\.HK$": "^HSI",
-        r"\.PA$|\.AS$|\.DE$|\.BR$|\.MI$|\.MC$": "EXSA.DE",
+        r"\.PA$|\.AS$|\.DE$|\.BR$|\.MI$|\.MC$": "^STOXX50E",
         r"\.L$": "^FTSE",
         r"\.T$": "^N225",
         r"\.SS$|\.SZ$": "000001.SS",

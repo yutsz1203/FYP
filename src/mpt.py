@@ -128,11 +128,11 @@ def portfolio_optimize(
     # Aggresive
     else:
         if market_ef:
-            market_ef.efficient_risk(0.5)
+            market_ef.efficient_risk(0.4)
         if sector_ef:
-            sector_ef.efficient_risk(0.5)
+            sector_ef.efficient_risk(0.4)
         if commodity_ef:
-            commodity_ef.efficient_risk(0.5)
+            commodity_ef.efficient_risk(0.4)
 
     market_optimal, sector_optimal, commodity_optimal = None, None, None
     if market_ef:

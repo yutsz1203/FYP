@@ -122,7 +122,7 @@ def evaluation(score: int):
     if 32 <= score <= 38:
         return "Growth"
     if 39 <= score <= 45:
-        return "Agressive Growth"
+        return "Aggressive Growth"
 
 
 _ = st.title("📝 Risk Assessment")

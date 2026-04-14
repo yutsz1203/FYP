@@ -31,9 +31,17 @@ RETURN_TEXT = {
     "All": "since inception",
 }
 BENCHMARKS = {
+    "Hang Seng Index": "2800.HK",
+    "S&P 500": "SPY",
+    "STOXX Europe 50": "EXSA.DE",
+    "FTSE 100": "ISF.L",
+    "Nikkei 225": "1329.T",
+    "SSE Composite Index": "2823.HK",
+}
+BENCHMARKS_INDEX = {
     "Hang Seng Index": "^HSI",
     "S&P 500": "^GSPC",
-    "STOXX Europe 600": "EXSA.DE",
+    "STOXX Europe 50": "^STOXX50E",
     "FTSE 100": "^FTSE",
     "Nikkei 225": "^N225",
     "SSE Composite Index": "000001.SS",

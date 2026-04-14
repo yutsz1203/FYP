@@ -86,6 +86,8 @@ def get_robo_holdings(df, rate_df, user_info):
     initial_price = fetch_price(assets, start)
     initial_price = assign_currency(initial_price, "Ticker")
     rates_pivot = get_rates_pivot(rate_df)
+    price_series = initial_price.set_index("Ticker")["Price"]
+    df["Base Current Price"] = df["Asset"].map(price_series)
     initial_price["Price"] = convert_to_base(
         df=initial_price,
         value_col="Price",
@@ -96,7 +98,8 @@ def get_robo_holdings(df, rate_df, user_info):
     )
     initial_price.set_index("Ticker", inplace=True)
 
-    current_price = fetch_price(assets, str(date.today()))
+    current_price = fetch_price(assets, str(date.today()), fetch_type="current")
+    print(current_price)
     current_price = assign_currency(current_price, "Ticker")
     current_price["Price"] = convert_to_base(
         df=current_price,
@@ -257,7 +260,7 @@ with tab2:
             "Asset",
             "Weight",
             "Current Weight",
-            "Current Price",
+            "Base Current Price",
             "Amount to buy",
             "Market Value",
             "Unrealised P&L",

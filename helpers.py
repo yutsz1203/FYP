@@ -102,7 +102,7 @@ def create_chart(
     return chart
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=True)
 def calc_return(tickers, period):
     returns = qs.utils.download_returns(tickers, period=period)
     returns.index = pd.to_datetime(returns.index).date
@@ -134,14 +134,35 @@ def period_select_box(key, index=4):
     return period
 
 
-@st.cache_data(show_spinner=False)
-def fetch_price(tickers, start):
+def fetch_price(tickers, start, fetch_type="initial"):
     org_start = start
     if start == str(date.today()):
         start = (date.today() - timedelta(days=5)).isoformat()
-    data = yf.download(tickers, start=start, period="1d", auto_adjust=True)
-    price = data["Close"].iloc[-1]
-    df = price.to_frame(name="Price")
-    df = df.reset_index()
-    df["Date"] = datetime.strptime(org_start, "%Y-%m-%d")
+
+    if isinstance(tickers, str):
+        tickers = [tickers]
+
+    if fetch_type == "initial":
+        data = yf.download(tickers, start=start, period="1d", auto_adjust=True)
+        price = data["Close"].iloc[-1]
+        df = price.to_frame(name="Price").reset_index()
+        df.rename(columns={df.columns[0]: "Ticker"}, inplace=True)
+        df["Date"] = datetime.strptime(org_start, "%Y-%m-%d")
+    else:
+        rows = []
+        for tick in tickers:
+            ticker = yf.Ticker(tick)
+            price = ticker.info.get("regularMarketPrice")
+            if price is None:
+                hist = ticker.history(period="1d", interval="1d", auto_adjust=True)
+                price = hist["Close"].iloc[-1] if not hist.empty else None
+            rows.append(
+                {
+                    "Ticker": tick,
+                    "Price": price,
+                    "Date": datetime.strptime(org_start, "%Y-%m-%d"),
+                }
+            )
+        df = pd.DataFrame(rows)
+
     return df

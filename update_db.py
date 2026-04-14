@@ -3,7 +3,6 @@ import time
 from datetime import date
 
 import mariadb
-import mysql.connector
 import pandas as pd
 import streamlit as st
 import yfinance as yf
