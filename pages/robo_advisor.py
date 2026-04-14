@@ -1,7 +1,6 @@
 # display portfolio components, past return performance graph, risk metrics, simulating value growth
 
 import json
-import math
 from datetime import date
 
 import altair as alt
@@ -13,7 +12,6 @@ from const import RETURN_TEXT
 from helpers import adjust_period, create_chart, fetch_price
 from src.db import fetch_rate
 from src.fx import assign_currency, convert_to_base, get_rates_pivot
-from src.holding import get_holdings
 from src.mpt import portfolio_optimize
 from src.rebalance import rebalance_check, rebalance_NoSell, rebalance_Sell
 
@@ -125,7 +123,6 @@ def get_robo_holdings(df, rate_df, user_info):
     df["Current Weight"] = df["Market Value"] / df["Market Value"].sum()
     df.drop(columns=["date", "Asset"], inplace=True)
     df = df.reset_index()
-    df = df.round(2)
     return df
 
 
@@ -184,6 +181,7 @@ with tab1:
     ].copy()
     holdings_display["Weight"] *= 100
     holdings_display.columns = ["Asset", "Weight (%)", "Amount to buy", "Shares to buy"]
+    holdings_display = holdings_display.round(2)
     st.dataframe(holdings_display, hide_index=True)
 
     st.markdown("### Historical Returns")
@@ -233,6 +231,17 @@ with tab1:
     st.altair_chart(chart, use_container_width=True)
 
 with tab2:
+    col7, col8, col9 = st.columns(3)
+    with col7:
+        st.markdown(f"#### Initial Investment: $ {total_investment:.2f}")
+    with col8:
+        st.markdown(f"#### Current Value: $ {holdings_df['Market Value'].sum():.2f}")
+    with col9:
+        total_p_and_l = holdings_df["Unrealised P&L"].sum()
+        if total_p_and_l < 0:
+            st.markdown(f"#### Unrealized P&L: :red[${total_p_and_l:,.2f}]")
+        else:
+            st.markdown(f"#### Unrealized P&L: :green[${total_p_and_l:,.2f}]")
     if rebalance:
         st.warning("Rebalancing available")
         if st.button("Show rebalance", type="primary"):
@@ -253,5 +262,14 @@ with tab2:
             "Market Value",
             "Unrealised P&L",
         ]
+    ]
+    current_holdings.columns = [
+        "Asset",
+        "Target Weight",
+        "Current Weight",
+        "Current Price",
+        "Cost Basis",
+        "Market Value",
+        "Unrealised P&L",
     ]
     st.dataframe(current_holdings, hide_index=True)
