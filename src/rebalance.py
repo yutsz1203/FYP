@@ -1,16 +1,19 @@
 import pandas as pd
+import numpy as np
 
 
-def rebalance_check(current, target):
+def rebalance_check(current):
     # Asset list is not the same
-    if list(current["Symbol"]) != list(target["Asset"]):
-        return True
-    for asset in list(current["Symbol"]):
-        current_weight = current.loc[current["Symbol"] == asset, "Weight"].values[0]
-        target_weight = target.loc[target["Asset"] == asset, "Weight"].values[0]
+    if current["Current Weight"].isnull().values.any():
+        return 1
+    for asset in list(current["Asset"]):
+        current_weight = current.loc[
+            current["Asset"] == asset, "Current Weight"
+        ].values[0]
+        target_weight = current.loc[current["Asset"] == asset, "Weight"].values[0]
         if abs(current_weight - target_weight) / target_weight >= 0.2:
-            return True
-    return False
+            return 2
+    return 0
 
 
 def rebalance_NoSell(current, target):
@@ -20,7 +23,7 @@ def rebalance_NoSell(current, target):
     total_overweightWeight = 0
     total_underweightWeight = 0
     for asset in list(target["Asset"]):
-        if asset not in list(current["Asset"]):
+        if np.isnan(current.loc[current["Asset"] == asset]["Current Weight"].item()):
             current_weight = 0
             current_value = 0
         else:
@@ -63,14 +66,14 @@ def rebalance_NoSell(current, target):
 
 
 def rebalance_Sell(current, target):
-    current_asset = list(current["Asset"])
-    target_asset = list(target["Asset"])
+    current_asset = list(current[current["Current Weight"] > 0]["Asset"])
+    target_asset = list(target[target["Weight"] > 0]["Asset"])
     portfolio_value = current["Market Value"].sum()
     asset_list = []
     value_list = []
     invest_unit = []
     for asset in current_asset:
-        if asset not in target_asset:
+        if np.isnan(target.loc[target["Asset"] == asset]["Weight"].item()):
             asset_list.append(asset)
             value_list.append(
                 -current.loc[current["Asset"] == asset]["Market Value"].item()

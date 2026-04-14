@@ -141,7 +141,7 @@ holdings_df = get_robo_holdings(weights_df, rate_df, res)
 holdings_check = holdings_df[["Asset", "Current Weight"]]
 holdings_check.columns = ["Symbol", "Weight"]
 weights_df = weights_df.reset_index()
-rebalance = rebalance_check(holdings_check[["Symbol", "Weight"]], weights_df)
+rebalance = rebalance_check(weights_df)
 
 
 st.set_page_config(page_icon="💼", layout="wide")
