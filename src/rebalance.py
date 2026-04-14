@@ -11,7 +11,7 @@ def rebalance_check(current):
             current["Asset"] == asset, "Current Weight"
         ].values[0]
         target_weight = current.loc[current["Asset"] == asset, "Weight"].values[0]
-        if abs(current_weight - target_weight) / target_weight >= 0.2:
+        if abs(current_weight - target_weight) / target_weight >= 0.15:
             return 2
     return 0
 
