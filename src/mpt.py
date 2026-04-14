@@ -1,12 +1,13 @@
-import matplotlib.pyplot as plt
+import json
+
 import pandas as pd
-import quantstats as qs
 import streamlit as st
 import yfinance as yf
-from pypfopt import expected_returns, plotting, risk_models
+from pypfopt import expected_returns, risk_models
 from pypfopt.efficient_frontier import EfficientFrontier
 
 
+@st.cache_data(show_spinner=False)
 def download_prices(tickers: list[str], period: str, interval: str) -> pd.DataFrame:
     """
     Download prices for certain period using certain interval data.
@@ -26,134 +27,147 @@ def download_prices(tickers: list[str], period: str, interval: str) -> pd.DataFr
     return prices
 
 
-def demo():
-    tickers = ["VOO", "2800.HK", "GLD", "QQQ", "IBIT"]  # passed from Fred's input
-    period = "5y"
-    interval = "1mo"
-    prices = download_prices(tickers, period, interval)
-
-    mu = expected_returns.mean_historical_return(prices, frequency=12)
-    S = risk_models.sample_cov(prices, frequency=12)
-
-    ef = EfficientFrontier(mu, S)
-
-    # Conservative - efficient_return() minimises risk for a given target return
-    ef_conservative = ef.deepcopy()
-    target_return = 0.05  # passed from Fred's input
-    weights_conservative = ef_conservative.efficient_return(target_return)
-    ret_conservative, std_conservative, sharpe_conservative = (
-        ef_conservative.portfolio_performance()
-    )
-
-    print(
-        f"Conservative: {weights_conservative}, Return {ret_conservative}, Vol {std_conservative}, Sharpe {sharpe_conservative}"
-    )
-
-    print(ef_conservative.clean_weights(rounding=4).items())
-
-    # Moderate - max_sharpe() optimises for maximal Sharpe ratio
-    ef_moderate = ef.deepcopy()
-    weights_moderate = ef_moderate.max_sharpe()
-    ret_moderate, std_moderate, sharpe_moderate = ef_moderate.portfolio_performance()
-
-    print(
-        f"Moderate: {weights_moderate}, Return {ret_moderate}, Vol {std_moderate}, Sharpe {sharpe_moderate}"
-    )
-
-    # Aggresive - efficient_risk() maximises return for a given target risk
-    ef_aggresive = ef.deepcopy()
-    weights_aggresive = ef_aggresive.efficient_risk(1)
-    ret_aggresive, std_aggresive, sharpe_aggresive = (
-        ef_aggresive.portfolio_performance()
-    )
-
-    print(
-        f"Aggresive: {weights_aggresive}, Return {ret_aggresive}, Vol {std_aggresive}, Sharpe {sharpe_aggresive}"
-    )
-
-    # plot graph
-    fig, ax = plt.subplots()
-    plotting.plot_efficient_frontier(ef, ax=ax, show_assets=True, show_tickers=True)
-
-    ax.scatter(
-        std_conservative,
-        ret_conservative,
-        marker="*",
-        s=100,
-        c="r",
-        label="Conservative",
-    )
-    ax.scatter(std_moderate, ret_moderate, marker="*", s=100, c="g", label="Moderate")
-    ax.scatter(
-        std_aggresive, ret_aggresive, marker="*", s=100, c="b", label="Aggresive"
-    )
-
-    ax.legend()
-    plt.tight_layout()
-    return plt
-
-
-@st.cache_resource(show_spinner=False)
-def generate_ef() -> EfficientFrontier:
-    tickers = [
-        "VOO",
-        "2800.HK",
-        "GLD",
-        "QQQ",
-        "IBIT",
-        "BND",
-    ]  # passed from Fred's input
-    period = "10y"
-    interval = "1mo"
-    prices = download_prices(tickers, period, interval)
-
-    mu = expected_returns.mean_historical_return(prices, frequency=12)
-    S = risk_models.sample_cov(prices, frequency=12)
-
-    ef = EfficientFrontier(mu, S)
-
-    # Conservative - efficient_return() minimises risk for a given target return
-    ef_conservative = ef.deepcopy()
-    target_return = 0.05  # passed from Fred's input
-    weights_conservative = ef_conservative.efficient_return(target_return)
-
-    # Moderate - max_sharpe() optimises for maximal Sharpe ratio
-    ef_moderate = ef.deepcopy()
-    weights_moderate = ef_moderate.max_sharpe()
-
-    # Aggresive - efficient_risk() maximises return for a given target risk
-    ef_aggresive = ef.deepcopy()
-    weights_aggresive = ef_aggresive.efficient_risk(1)
-
-    return ef_conservative
-
-
-def get_optimal_weights() -> pd.DataFrame:
-    ef = generate_ef()
-    weights = ef.clean_weights()
+def get_optimal_weights(weights) -> pd.DataFrame:
     weights_df = pd.DataFrame(weights.items(), columns=["Asset", "Weight"])
     return weights_df
 
 
-def get_optimised_performance():
-    ef = generate_ef()
-    ret, std, sharpe = ef.portfolio_performance()
-    return ret, std, sharpe
+def portfolio_optimize(
+    risk_preference: str, asset_list: list
+) -> tuple[pd.DataFrame, dict]:
+    """
+    risk_preferences
+    1. Capital Preservation
+        70% bond, 20% broad market, 5% sector, 5% commodity
+    2. Conservative
+        55% bond, 30% market, 10% sector, 5% commodity
+    3. Balanced
+        40% bond, 40% market, 15% sector, 5% commodity
+    4. Growth
+        25% bond, 45% market, 20% sector, 10% commodity
+    5. Aggresive Growth
+        10% bond, 50% market, 30% sector, 10% commodity
+    """
+    period = "5y"
+    interval = "1mo"
+
+    with open("data/model_portfolios.json", "r") as f:
+        model_portfolios = json.load(f)
+        model_weights = model_portfolios[risk_preference]
+
+    market_map = {"VOO": "US", "2800.HK": "HK", "VXUS": "World"}
+    sector_map = {
+        "XLK": "Technology",
+        "XLF": "Financials",
+        "XLV": "Health Care",
+        "XLY": "Consumer(Non-Essential)",
+        "XLP": "Consumer(Essential)",
+        "XLI": "Industrials",
+        "XLE": "Energy",
+        "XLU": "Utilities",
+        "XLB": "Materials",
+        "XLRE": "Real Estate",
+        "XLC": "Communication",
+    }
+    commodity_map = {
+        "GLD": "Gold",
+        "SLV": "Silver",
+        "USO": "Oil",
+        "DBB": "Industrial Metals",
+        "DBA": "Agriculture",
+        "DJP": "Broad",
+        "IBIT": "Bitcoin",
+    }
+
+    asset_set = set(asset_list)
+    market_asset = list(asset_set & set(market_map.keys()))
+    sector_asset = list(asset_set & set(sector_map.keys()))
+    commodity_asset = list(asset_set & set(commodity_map.keys()))
+
+    market_ef, sector_ef, commodity_ef = None, None, None
+
+    if market_asset:
+        market_ef = generate_ef(
+            model_weights, market_asset, "Market", period, interval, market_map
+        )
+
+    if sector_asset:
+        sector_ef = generate_ef(
+            model_weights, sector_asset, "Sector", period, interval, sector_map
+        )
+
+    if commodity_asset:
+        commodity_ef = generate_ef(
+            model_weights, commodity_asset, "Commodity", period, interval, commodity_map
+        )
+
+    if not sector_asset:
+        model_weights["Market"] += model_weights["Sector"]
+        model_weights["Sector"] = 0
+
+    if not commodity_asset:
+        model_weights["Market"] += model_weights["Commodity"]
+        model_weights["Commodity"] = 0
+
+    # Conservative
+    if risk_preference == "Capital Preservation" or risk_preference == "Conservative":
+        if market_ef:
+            market_ef.min_volatility()
+        if sector_ef:
+            sector_ef.min_volatility()
+        if commodity_ef:
+            commodity_ef.min_volatility()
+    # Balanced
+    elif risk_preference == "Balanced":
+        if market_ef:
+            market_ef.max_sharpe()
+        if sector_ef:
+            sector_ef.max_sharpe()
+        if commodity_ef:
+            commodity_ef.max_sharpe()
+    # Aggresive
+    else:
+        if market_ef:
+            market_ef.efficient_risk(0.5)
+        if sector_ef:
+            sector_ef.efficient_risk(0.5)
+        if commodity_ef:
+            commodity_ef.efficient_risk(0.5)
+
+    market_optimal, sector_optimal, commodity_optimal = None, None, None
+    if market_ef:
+        market_optimal = get_optimal_weights(market_ef.clean_weights())
+        market_optimal["Weight"] *= model_weights["Market"]
+    if sector_ef:
+        sector_optimal = get_optimal_weights(sector_ef.clean_weights())
+        sector_optimal["Weight"] *= model_weights["Sector"]
+    if commodity_ef:
+        commodity_optimal = get_optimal_weights(commodity_ef.clean_weights())
+        commodity_optimal["Weight"] *= model_weights["Commodity"]
+
+    recommended_portfolio = pd.concat(
+        [
+            pd.DataFrame([{"Asset": "BND", "Weight": model_weights["Bond"]}]),
+            market_optimal,
+            sector_optimal,
+            commodity_optimal,
+        ]
+    )
+    return recommended_portfolio, model_weights
 
 
-"""
-## expected return calculation
-1. mean_historical_return
-2. ema_historical_return
-3. capm_return
+def generate_ef(model_weights, asset_list, asset_type, period, interval, mapping):
+    prices = download_prices(asset_list, period, interval)
+    mu = expected_returns.mean_historical_return(prices, frequency=12)
+    S = risk_models.sample_cov(prices, frequency=12)
+    ef = EfficientFrontier(mu, S)
 
-## covariance matrix estimation
-1. sample_cov
-2. semicovariance
-3. exp_cov
+    constraint_lower, constraint_upper = {}, {}
+    minimum = model_weights[asset_type] / len(asset_list)
+    for asset in asset_list:
+        constraint_lower[mapping[asset]] = minimum
+        constraint_upper[mapping[asset]] = 1
 
-## optimal weights based on risk preferences
-Conservative: min_volatility (minimises volatility) / efficient_return (minimises volatility for a given target return)
-Moderate: max_sharpe (maximises sharpe ratio, returns per unit risk)
-Aggressive: efficient_risk (maximises return for a given target risk)
-"""
+    ef.add_sector_constraints(mapping, constraint_lower, constraint_upper)
+
+    return ef

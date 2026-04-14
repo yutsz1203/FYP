@@ -30,17 +30,13 @@ RETURN_TEXT = {
     "5Y": "in the past five years",
     "All": "since inception",
 }
-BENCHMARKS = [
-    "Hang Seng Index",
-    "S&P 500",
-    "NASDAQ Composite",
-    "MSCI World Index",
-]
-BENCHMARK_MAP = {
+BENCHMARKS = {
     "Hang Seng Index": "^HSI",
     "S&P 500": "^GSPC",
-    "NASDAQ Composite": "^IXIC",
-    "MSCI World Index": "^990100-USD-STRD",
+    "STOXX Europe 600": "EXSA.DE",
+    "FTSE 100": "^FTSE",
+    "Nikkei 225": "^N225",
+    "SSE Composite Index": "000001.SS",
 }
 SESSION = requests.Session(impersonate="chrome")
 HK_MAX = 9999

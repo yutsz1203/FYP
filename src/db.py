@@ -103,11 +103,11 @@ def fetch_holdings() -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def fetch_price(assets, start) -> pd.DataFrame:
+def fetch_price(assets, start, adjust=False) -> pd.DataFrame:
     """
     symbol, date, close
     """
-    prices = yf.download(assets, start=start, auto_adjust=False)["Close"]
+    prices = yf.download(assets, start=start, auto_adjust=adjust)["Close"]
     idx = pd.date_range(start=start, end=today, freq="D").date
     daily_prices = prices.reindex(idx).ffill()
 

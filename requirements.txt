@@ -78,6 +78,7 @@ smmap==5.0.2
 soupsieve==2.7
 stack-data==0.6.3
 streamlit==1.49.1
+statsmodels
 SQLAlchemy==2.0.44
 tabulate==0.9.0
 tenacity==9.1.2

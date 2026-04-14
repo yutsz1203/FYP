@@ -1,9 +1,13 @@
+import re
+
+import numpy as np
 import pandas as pd
 import quantstats as qs
 import statsmodels.api as sm
 import streamlit as st
 import yfinance as yf
 
+from const import BENCHMARKS
 from src.holding import get_holdings
 
 
@@ -30,11 +34,7 @@ def portfolio_historical(
     holdings_df["weight"] = holdings_df["Market Value"] / total_value
     weights = holdings_df["weight"].tolist()
 
-    data = yf.download(tickers, period=period, interval=interval, auto_adjust=True)
-    data = data["Close"]
-
-    returns = data.pct_change()
-    returns = returns.loc[returns.notna().any(axis=1)]
+    returns = get_returns(tickers, period=period, interval=interval)
 
     # w_i = portfolio weights
     # w_tilda{i,t} = w_i / sum(w_j), R_{p,t} = sum (w_tilda{i,t} * R_{i,t})
@@ -49,16 +49,28 @@ def portfolio_historical(
 
 
 @st.cache_data(show_spinner=False)
-def get_indv_returns(symbols, cache_key, period="1y"):
-    return qs.utils.download_returns(symbols, period=period)
+def get_returns(symbols, period="1y", interval="1d", log=False):
+    data = yf.download(symbols, period=period, interval=interval, auto_adjust=True)
+    prices = data["Close"]
+
+    if log:
+        returns = np.log(prices).diff()
+    else:
+        returns = prices.pct_change()
+    returns = returns.dropna(how="all").iloc[1:]
+    returns = returns.fillna(0)
+    return returns
 
 
 @st.cache_data(show_spinner=False)
-def get_benchmarks_volatility(period="1y"):
-    benchmark_returns = qs.utils.download_returns(
-        ["^HSI", "^IXIC", "^GSPC", "XWD.TO"], period=period
-    )
-    return benchmark_returns.volatility()
+def get_volatility(returns: pd.DataFrame, steps=252):
+    return returns.std() * np.sqrt(steps)
+
+
+@st.cache_data(show_spinner=False)
+def get_benchmarks_volatility(period, steps=252):
+    benchmark_returns = get_returns(list(BENCHMARKS.values()), period=period)
+    return get_volatility(benchmark_returns)
 
 
 @st.cache_data(show_spinner=False)
@@ -67,13 +79,35 @@ def get_msci_returns(period="1y"):
 
 
 @st.cache_data(show_spinner=False)
-def get_betas(returns, benchmark_return):
+def get_betas(returns, benchmark_returns):
     betas = []
+    exchange_benchmark_map = {
+        r"\.HK$": "^HSI",
+        r"\.PA$|\.AS$|\.DE$|\.BR$|\.MI$|\.MC$": "EXSA.DE",
+        r"\.L$": "^FTSE",
+        r"\.T$": "^N225",
+        r"\.SS$|\.SZ$": "000001.SS",
+    }
+
     for col in returns.columns:
-        beta = qs.stats.greeks(returns[col], benchmark_return)["beta"]
-        betas.append({"symbol": col, "beta": beta.round(2)})
-    df = pd.DataFrame(betas)
-    return df
+        selected_bench = "^GSPC"
+        for pattern, bench_ticker in exchange_benchmark_map.items():
+            if re.search(pattern, col):
+                selected_bench = bench_ticker
+                break
+
+        asset_series = returns[col]
+        bench_series = benchmark_returns[selected_bench]
+
+        try:
+            greeks = qs.stats.greeks(asset_series, bench_series)
+            beta = greeks["beta"]
+        except:
+            beta = np.nan
+
+        betas.append({"symbol": col, "beta": round(beta, 2)})
+
+    return pd.DataFrame(betas)
 
 
 @st.cache_data(show_spinner=False)

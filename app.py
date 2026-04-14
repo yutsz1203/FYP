@@ -7,7 +7,7 @@ portfolio_overview = st.Page("pages/portfolio_overview.py", title="Portfolio Ove
 portfolio_returns = st.Page("pages/portfolio_returns.py", title="Portfolio Returns")
 risk_analysis = st.Page("pages/risk_analysis.py", title="Risk Analysis Tools")
 transactions = st.Page("pages/transactions.py", title="Transactions")
-robo_advisor = st.Page("pages/robo_advisor.py", title="Robo advisor")
+robo_advisor = st.Page("pages/robo_advisor.py", title="Robo Advisor")
 
 
 # Set up navigation
@@ -15,10 +15,10 @@ pg = st.navigation(
     [
         home_page,
         portfolio_overview,
-        risk_assessment,
         portfolio_returns,
         risk_analysis,
         transactions,
+        risk_assessment,
         robo_advisor,
     ]
 )

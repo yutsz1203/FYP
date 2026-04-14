@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import altair as alt
 import pandas as pd
 import quantstats as qs
 import streamlit as st
+import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from src.db import fetch_transaction
@@ -125,9 +126,22 @@ def color(val, type="p-val"):
 
 def period_select_box(key, index=4):
     period = st.selectbox(
-        "Time Period",
+        "Lookback Period",
         ("5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"),
         index=index,
         key=key,
     )
     return period
+
+
+@st.cache_data(show_spinner=False)
+def fetch_price(tickers, start):
+    org_start = start
+    if start == str(date.today()):
+        start = (date.today() - timedelta(days=5)).isoformat()
+    data = yf.download(tickers, start=start, period="1d", auto_adjust=True)
+    price = data["Close"].iloc[-1]
+    df = price.to_frame(name="Price")
+    df = df.reset_index()
+    df["Date"] = datetime.strptime(org_start, "%Y-%m-%d")
+    return df

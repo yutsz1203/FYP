@@ -1,0 +1,32 @@
+{
+    "Capital Preservation":{
+        "Bond": 0.7,
+        "Market": 0.2,
+        "Sector": 0.05,
+        "Commodity": 0.05
+    },
+    "Conservative":{
+        "Bond": 0.55,
+        "Market": 0.3,
+        "Sector": 0.1,
+        "Commodity": 0.05
+    },
+    "Balanced":{
+        "Bond": 0.4,
+        "Market": 0.4,
+        "Sector": 0.15,
+        "Commodity": 0.05
+    },
+    "Growth":{
+        "Bond": 0.25,
+        "Market": 0.45,
+        "Sector": 0.2,
+        "Commodity": 0.1
+    },
+    "Aggressive Growth":{
+        "Bond": 0.1,
+        "Market": 0.5,
+        "Sector": 0.3,
+        "Commodity": 0.1
+    }
+}

@@ -12,7 +12,7 @@ from helpers import (
 )
 from src.holding import build_allocation, get_holdings, get_portfolio_value
 
-st.set_page_config(page_icon="📊", layout="centered")
+st.set_page_config(page_icon="📊", layout="wide")
 st.title("📊 Portfolio Overview")
 st.markdown("### Portfolio Value")
 base_currency = st.selectbox(

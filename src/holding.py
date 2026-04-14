@@ -1,5 +1,6 @@
 from datetime import date
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 import yfinance as yf
@@ -19,9 +20,11 @@ rate_df = fetch_rate()
 rates_pivot = get_rates_pivot(rate_df)
 
 
-def get_portfolio_value(assets, start, base_currency="USD") -> pd.DataFrame:
+def get_portfolio_value(
+    assets, start, adjust=False, base_currency="USD"
+) -> pd.DataFrame:
     daily_holding_df = build_daily_holding()
-    price_df = fetch_price(assets, start)
+    price_df = fetch_price(assets, start, adjust)
     tx_df = fetch_transaction()
 
     daily_holding_df["value_after_tx"] = (
@@ -229,3 +232,24 @@ def build_allocation(holding_df: pd.DataFrame) -> pd.DataFrame:
     allocation = allocation[~multi_mask]
     allocation = pd.concat([allocation, pd.DataFrame(tmp)])
     return allocation
+
+
+@st.cache_data(show_spinner=False)
+def portfolio_time_weighted_return(df: pd.DataFrame) -> pd.DataFrame:
+    df["daily_return"] = (
+        df["base_value_before_tx"] / df["base_value_after_tx"].shift(1) - 1
+    )
+    df.loc[df.index[0], "daily_return"] = 0
+    df["TWR"] = ((1 + df["daily_return"]).cumprod() - 1) * 100
+    return df
+
+
+@st.cache_data(show_spinner=False)
+def portfolio_daily_return(df: pd.DataFrame) -> pd.DataFrame:
+    df["daily_return"] = (
+        df["base_value_before_tx"] / df["base_value_after_tx"].shift(1)
+    ) - 1
+    df.loc[df.index[0], "daily_return"] = 0
+    returns_series = df["daily_return"].fillna(0).replace([np.inf, -np.inf], 0)
+    returns_series.index = pd.to_datetime(returns_series.index)
+    return returns_series

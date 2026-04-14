@@ -5,20 +5,27 @@ import quantstats as qs
 import seaborn as sns
 import streamlit as st
 
-from const import BENCHMARK_MAP, BENCHMARKS, CURRENCY_SIGN_MAP
-from helpers import base_currency_format, color, format_series, period_select_box
-from src.holding import get_holdings
+from const import BENCHMARKS, CURRENCY_SIGN_MAP
+from helpers import (
+    adjust_period,
+    base_currency_format,
+    color,
+    format_series,
+    get_start_date,
+    period_select_box,
+)
+from src.holding import get_holdings, get_portfolio_value, portfolio_daily_return
 from src.risk_analysis_src import (
     factor_analysis,
     generate_report,
     get_benchmarks_volatility,
     get_betas,
     get_corr_matrix,
-    get_indv_returns,
-    get_msci_returns,
+    get_returns,
+    get_volatility,
 )
 
-st.set_page_config(page_icon="⚠️", layout="centered")
+st.set_page_config(page_icon="⚠️", layout="wide")
 qs.extend_pandas()
 cache_key = st.session_state.get("cache_key", "v1")
 
@@ -47,11 +54,11 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
 
 # Volatility
 with tab1:
-    period = period_select_box(1, 1)
+    period = period_select_box(1, 5)
     st.markdown("### Individual Stocks Volatility (%)")
 
-    indv_returns = get_indv_returns(symbols, cache_key, period=period)
-    indv_volatility = indv_returns.volatility()
+    indv_returns = get_returns(symbols, period=period)
+    indv_volatility = get_volatility(indv_returns)
     indv_volatility = format_series(indv_volatility)
 
     indv_volatility.name = "Volatility (%)"
@@ -75,12 +82,7 @@ with tab1:
     st.markdown("### Benchmarks Volatility (%)")
     benchmark_volatility = get_benchmarks_volatility(period=period)
     benchmark_volatility.name = "Volatility (%)"
-    benchmark_volatility.index = [
-        "Hang Seng Index",
-        "S&P 500",
-        "NASDAQ Composite",
-        "MSCI World Index",
-    ]
+    benchmark_volatility.index = BENCHMARKS.keys()
     benchmark_volatility.index.name = "Benchmark"
     benchmark_volatility = format_series(benchmark_volatility)
     st.dataframe(benchmark_volatility.reset_index(), hide_index=True)
@@ -90,9 +92,11 @@ with tab2:
     period = period_select_box(2, 6)
     st.markdown("### Individual Stocks Beta")
 
-    indv_returns = get_indv_returns(symbols, cache_key, period=period)
-    msci_returns = get_msci_returns(period=period)
-    betas = get_betas(indv_returns, msci_returns)
+    indv_returns = get_returns(symbols, period=period, interval="1mo")
+    benchmark_returns = get_returns(
+        list(BENCHMARKS.values()), period=period, interval="1mo"
+    )
+    betas = get_betas(indv_returns, benchmark_returns)
     beta_df = holdings[["symbol", "Weight"]]
 
     df = pd.merge(beta_df, betas, on="symbol", how="inner")
@@ -106,9 +110,9 @@ with tab2:
 
 # Maximum drawdown
 with tab3:
-    period = period_select_box(3)
+    period = period_select_box(3, 5)
     st.markdown("### Individual Stocks Maximum Drawdown (%)")
-    indv_returns = get_indv_returns(symbols, cache_key, period=period)
+    indv_returns = get_returns(symbols, period)
     drawdown = indv_returns.max_drawdown()
     drawdown.name = "Maximum Drawdown (%)"
     drawdown.index.name = "Symbol"
@@ -130,8 +134,8 @@ with tab3:
 
 # Value-at-risk
 with tab4:
-    period = period_select_box(4)
-    indv_returns = get_indv_returns(symbols, cache_key, period=period)
+    period = period_select_box(4, 5)
+    indv_returns = get_returns(symbols, period=period, log=True)
     corr_matrix = get_corr_matrix(indv_returns)
 
     col1, col2 = st.columns([2, 6])
@@ -143,11 +147,11 @@ with tab4:
             format_func=base_currency_format,
         )
     with col2:
-        confidence_level = st.slider("Confidence level (%)", 0, 99, 99)
+        confidence_level = st.slider("Confidence level (%)", 0, 99, 95)
 
     var_df = get_holdings(base_currency)
     var_df.rename(columns={"Symbol": "symbol"}, inplace=True)
-    var_df["var"] = -round(
+    var_df["var"] = round(
         qs.stats.var(indv_returns, confidence=confidence_level)
         * var_df["Market Value"],
         2,
@@ -160,7 +164,7 @@ with tab4:
 
     indv_var = var_df["var"].to_numpy(copy=True).reshape(-1, 1)
     Corr = corr_matrix.values
-    port_var = np.sqrt(indv_var.T @ Corr @ indv_var).item()
+    port_var = -np.sqrt(indv_var.T @ Corr @ indv_var).item()
 
     st.write(
         f"### Portfolio daily Value-at-risk (VaR): {CURRENCY_SIGN_MAP[base_currency]} {port_var:.2f}"
@@ -168,10 +172,10 @@ with tab4:
 
 # Correlation
 with tab5:
-    period = period_select_box(5)
+    period = period_select_box(5, 6)
     st.write("### Portfolio Correlation Analysis")
 
-    indv_returns = get_indv_returns(symbols, cache_key, period=period)
+    indv_returns = get_returns(symbols, period=period, interval="1mo")
     corr_matrix = get_corr_matrix(indv_returns)
     n = len(symbols)
     h, w = min(n + 1, 10), min(n - 1, 8)
@@ -234,18 +238,25 @@ with tab6:
 
 # Comprehensive report
 with tab7:
-    period = period_select_box(7)
-    indv_returns = get_indv_returns(symbols, cache_key, period=period)
+    period = period_select_box(7, 6)
+    start = get_start_date()
+    portfolio_value_df = get_portfolio_value(symbols, start)
+    start = adjust_period(start, period)
+    portfolio_value_df = portfolio_value_df[portfolio_value_df.index >= start]
+
+    portfolio_return = portfolio_daily_return(portfolio_value_df)
     selected_benchmark = st.selectbox(
         "Select a benchmark for comparison",
-        options=BENCHMARKS,
+        options=BENCHMARKS.keys(),
     )
     output_path = "report.html"
 
     if st.button("Generate report"):
         with st.spinner("Generating comprehensive report..."):
             generate_report(
-                indv_returns, BENCHMARK_MAP[selected_benchmark], output_path
+                portfolio_return,
+                BENCHMARKS[selected_benchmark],
+                output_path,
             )
         with open(output_path, "rb") as f:
             st.download_button(

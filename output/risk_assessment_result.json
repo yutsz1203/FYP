@@ -1,0 +1,13 @@
+{
+    "risk_preference": "Growth",
+    "total_investment": 25000,
+    "asset_list": [
+        "BND",
+        "2800.HK",
+        "XLE",
+        "XLRE",
+        "DJP",
+        "IBIT"
+    ],
+    "created_on": "2026-04-14"
+}

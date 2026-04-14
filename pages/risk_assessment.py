@@ -1,6 +1,9 @@
+import json
+from datetime import date
+
 import streamlit as st
 
-st.set_page_config(page_icon="", layout="centered")
+st.set_page_config(page_icon="📝", layout="wide")
 
 Q1_QS_MAP = {
     "Preserve capital": 1,
@@ -73,7 +76,7 @@ COMMODITIES_MAP = {
     "Industrial Metals": "DBB",
     "Agriculture": "DBA",
     "Broad": "DJP",
-    "Bitcoin" : "IBIT",
+    "Bitcoin": "IBIT",
 }
 COMMODITIES = list(COMMODITIES_MAP.keys())
 commodities_checkboxs = [True] * 7
@@ -100,7 +103,11 @@ sector_checkboxs = [True] * 11
 def validate(Inv_Q, US, HK, XUS, sector, value):
     if value <= 1:
         return False
-    if ( None in Inv_Q) or not (US or HK or XUS) or (sum(x is not None for x in sector) <= 7):
+    if (
+        (None in Inv_Q)
+        or not (US or HK or XUS)
+        or (sum(x is not None for x in sector) <= 7)
+    ):
         return False
     return True
 
@@ -118,13 +125,15 @@ def evaluation(score: int):
         return "Agressive Growth"
 
 
-_ = st.title("Risk Assessment")
+_ = st.title("📝 Risk Assessment")
 st.write("Risk Assessment page to evaluate your tolerance and financial goal")
-tab1, tab2 = st.tabs(["Risk Evaluation", "Financial Goal"])
+tab1 = st.tabs(["Risk Evaluation"])
 
 with st.form("risk_assessment"):
     st.write("What is your estimated total investment value?")
-    total_invest = st.number_input("Investment Value", format="%d", step=1, min_value=1, value=None)
+    total_invest = st.number_input(
+        "Investment Value", format="%d", step=1, min_value=1, value=None
+    )
 
     st.write("Which markets to include?")
 
@@ -209,7 +218,14 @@ with st.form("risk_assessment"):
     submit_button = st.form_submit_button("Submit")
 
 if submit_button:
-    if not validate([Inv_Q1, Inv_Q2, Inv_Q3, Inv_Q4, Inv_Q5, Inv_Q6, Inv_Q7, Inv_Q8, Inv_Q9], US_checkbox, HK_checkbox, Global_checkbox,sector_checkboxs, total_invest):
+    if not validate(
+        [Inv_Q1, Inv_Q2, Inv_Q3, Inv_Q4, Inv_Q5, Inv_Q6, Inv_Q7, Inv_Q8, Inv_Q9],
+        US_checkbox,
+        HK_checkbox,
+        Global_checkbox,
+        sector_checkboxs,
+        total_invest,
+    ):
         _ = st.warning("Please fill in the questions accordingly")
     else:
         score = 0
@@ -225,11 +241,11 @@ if submit_button:
         resultScore = evaluation(score)
         _ = st.success(f"Success! Your risk preference is : {resultScore}")
 
-        resultEtf = []
+        resultEtf = ["BND"]
         if US_checkbox:
             resultEtf.append("VOO")
         if HK_checkbox:
-            resultEtf.append("2800.hk")
+            resultEtf.append("2800.HK")
         if Global_checkbox:
             resultEtf.append("VXUS")
         for i in range(len(sector_checkboxs)):
@@ -238,4 +254,13 @@ if submit_button:
         for i in range(len(commodities_checkboxs)):
             if commodities_checkboxs[i]:
                 resultEtf.append(COMMODITIES_MAP[list(COMMODITIES_MAP.keys())[i]])
-        print(resultEtf)
+
+        result = {
+            "risk_preference": resultScore,
+            "total_investment": total_invest,
+            "asset_list": resultEtf,
+            "created_on": str(date.today()),
+        }
+
+        with open("output/risk_assessment_result.json", "w") as f:
+            json.dump(result, f, indent=4)

@@ -224,7 +224,7 @@ if __name__ == "__main__":
     # Test()
     # Screener(conn)
     update_rates(conn, CURRENCIES)
-    Updater(conn)
+    # Updater(conn)
 
     # get_events(
     #     conn,
