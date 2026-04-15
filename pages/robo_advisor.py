@@ -99,7 +99,6 @@ def get_robo_holdings(df, rate_df, user_info):
     initial_price.set_index("Ticker", inplace=True)
 
     current_price = fetch_price(assets, str(date.today()), fetch_type="current")
-    print(current_price)
     current_price = assign_currency(current_price, "Ticker")
     current_price["Price"] = convert_to_base(
         df=current_price,
