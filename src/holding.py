@@ -220,17 +220,30 @@ def build_allocation(holding_df: pd.DataFrame) -> pd.DataFrame:
     tmp = []
     for etf in multi:
         base = allocation.loc[allocation["Symbol"] == etf, "Market Value"].values[0]
-        weightings = yf.Ticker(etf).funds_data.sector_weightings
+        try:
+            weightings = yf.Ticker(etf).funds_data.sector_weightings
+            if not weightings:
+                raise ValueError("No sector weightings available")
+        except Exception:
+            tmp.append(
+                {
+                    "Symbol": etf,
+                    "Sector": "Multi",
+                    "Market Value": base,
+                }
+            )
+            continue
+
         for sector, weight in weightings.items():
             tmp.append(
                 {
                     "Symbol": etf,
-                    "Sector": SECTOR_CASE_MAP[sector],
+                    "Sector": SECTOR_CASE_MAP.get(sector, "Multi"),
                     "Market Value": base * weight,
                 }
             )
     allocation = allocation[~multi_mask]
-    allocation = pd.concat([allocation, pd.DataFrame(tmp)])
+    allocation = pd.concat([allocation, pd.DataFrame(tmp)], ignore_index=True)
     return allocation
 
 
