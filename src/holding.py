@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
-from const import SECTOR_CASE_MAP, SESSION
+from const import SECTOR_CASE_MAP
 from src.fx import assign_currency, convert_to_base, get_rates_pivot
 
 from .db import (
@@ -221,7 +221,7 @@ def build_allocation(holding_df: pd.DataFrame) -> pd.DataFrame:
     for etf in multi:
         base = allocation.loc[allocation["Symbol"] == etf, "Market Value"].values[0]
         try:
-            weightings = yf.Ticker(etf, session=SESSION).funds_data.sector_weightings
+            weightings = yf.Ticker(etf).funds_data.sector_weightings
             if not weightings:
                 raise ValueError("No sector weightings available")
         except Exception:
