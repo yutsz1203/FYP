@@ -20,7 +20,7 @@ Q2_QS_MAP = {
     "More than 7 years": 5,
 }
 Q3_QS_MAP = {
-    "Sell to avoid further lossess": 1,
+    "Sell to avoid further losses": 1,
     "Reduce exposure": 2,
     "Stay invested": 3,
     "Gradually invest more": 4,
