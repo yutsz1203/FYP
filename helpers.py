@@ -134,20 +134,33 @@ def period_select_box(key, index=4):
     return period
 
 
-def fetch_price(tickers, start, fetch_type="initial"):
-    org_start = start
-    if start == str(date.today()):
-        start = (date.today() - timedelta(days=5)).isoformat()
-
+def fetch_price(tickers, start, fetch_type="initial") -> pd.DataFrame:
     if isinstance(tickers, str):
         tickers = [tickers]
 
+    org_start = pd.Timestamp(start)
+
+    window_start = (org_start - timedelta(days=7)).strftime("%Y-%m-%d")
+    window_end = (org_start + timedelta(days=7)).strftime("%Y-%m-%d")
+
+    data = yf.download(
+        tickers,
+        start=window_start,
+        end=window_end,
+        auto_adjust=True,
+        progress=False,
+    )["Close"]
+
+    if data.empty:
+        raise ValueError(f"No price data found for {tickers} around {start}.")
+
     if fetch_type == "initial":
-        data = yf.download(tickers, start=start, period="1d", auto_adjust=True)
-        price = data["Close"].iloc[-1]
+        price = data.asof(org_start)
+
         df = price.to_frame(name="Price").reset_index()
         df.rename(columns={df.columns[0]: "Ticker"}, inplace=True)
-        df["Date"] = datetime.strptime(org_start, "%Y-%m-%d")
+        df["Date"] = org_start
+
     else:
         rows = []
         for tick in tickers:
@@ -160,7 +173,7 @@ def fetch_price(tickers, start, fetch_type="initial"):
                 {
                     "Ticker": tick,
                     "Price": price,
-                    "Date": datetime.strptime(org_start, "%Y-%m-%d"),
+                    "Date": datetime.strptime(start, "%Y-%m-%d"),
                 }
             )
         df = pd.DataFrame(rows)
