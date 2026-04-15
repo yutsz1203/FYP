@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import altair as alt
 import pandas as pd
@@ -7,6 +7,7 @@ import streamlit as st
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
+from const import SESSION
 from src.db import fetch_transaction
 
 
@@ -164,7 +165,7 @@ def fetch_price(tickers, start, fetch_type="initial") -> pd.DataFrame:
     else:
         rows = []
         for tick in tickers:
-            ticker = yf.Ticker(tick)
+            ticker = yf.Ticker(tick, session=SESSION)
             price = ticker.info.get("regularMarketPrice")
             if price is None:
                 hist = ticker.history(period="1d", interval="1d", auto_adjust=True)
