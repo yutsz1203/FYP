@@ -1,9 +1,10 @@
 # display portfolio components, past return performance graph, risk metrics, simulating value growth
 
 import json
-from datetime import date
+from datetime import date, datetime
 
 import altair as alt
+import pandas as pd
 import plotly.express as px
 import quantstats as qs
 import streamlit as st
@@ -99,6 +100,13 @@ def get_robo_holdings(df, rate_df, user_info):
     initial_price.set_index("Ticker", inplace=True)
 
     current_price = fetch_price(assets, str(date.today()), fetch_type="current")
+    # current_price = pd.DataFrame(
+    #     {
+    #         "Ticker": ["2800.HK", "BND", "DJP", "IBIT", "XLE", "XLRE"],
+    #         "Price": [30.959999, 73.800003, 42.259998, 35.590000, 60.110001, 41.020000],
+    #         "Date": [datetime.strptime("2026-04-14", "%Y-%m-%d")] * 6,
+    #     }
+    # )
     current_price = assign_currency(current_price, "Ticker")
     current_price["Price"] = convert_to_base(
         df=current_price,
