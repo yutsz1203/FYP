@@ -12,9 +12,8 @@ st.markdown(
     "\n- Portfolio Returns \n\t- Portfolio Return History \n\t- Performance Benchmarking"
     "\n- Risk Analysis Tools \n\t- Volatility \n\t- Beta \n\t- Drawdown \n\t- Value-at-risk \n\t- Correlation Analysis \n\t- Factor Analysis \n\t- Comprehensive Report"
     "\n- Transactions \n\t- Transaction input \n\t- Transaction History"
-    "\n- Risk Assessmnet \n\t- Risk Evaluation"
 )
 st.markdown("### Robo-advisor")
 st.markdown(
-    "\n- Robo Advisor \n\t- Model Portfolios \n\t- Portfolio Optimization \n\t- Rebalancing"
+    "\n- Robo Advisor \n\t- Risk Assessment \n\t\t- Risk Evaluation \n\t - Model Portfolios \n\t- Portfolio Optimization \n\t- Rebalancing"
 )
