@@ -1,3 +1,5 @@
+import re
+
 import mariadb
 import streamlit as st
 import yfinance as yf
@@ -25,6 +27,134 @@ def get_tx(_conn):
     lastid = df.iloc[-1]["TId"]
     st.session_state["lastrowid"] = lastid + 1
     return df
+
+
+SUPPORTED_EXCHANGE_SUFFIXES = (
+    ".HK",
+    ".SS",
+    ".SZ",
+    ".L",
+    ".PA",
+    ".AS",
+    ".DE",
+    ".BR",
+    ".MI",
+    ".MC",
+    ".T",
+)
+
+SUPPORTED_EXCHANGE_MESSAGE = (
+    "Supported exchanges are US tickers (no suffix) or the following suffixes: "
+    + ", ".join(SUPPORTED_EXCHANGE_SUFFIXES)
+)
+
+
+def is_supported_ticker(symbol: str) -> bool:
+    if not isinstance(symbol, str) or not symbol.strip():
+        return False
+    normalized = symbol.strip().upper()
+    if "." not in normalized:
+        return bool(re.match(r"^[A-Z0-9]+$", normalized))
+    return any(normalized.endswith(suffix) for suffix in SUPPORTED_EXCHANGE_SUFFIXES)
+
+
+def can_fetch_ticker(symbol: str) -> bool:
+    try:
+        ticker = yf.Ticker(symbol, session=SESSION)
+        info = ticker.info
+        if (
+            info.get("regularMarketPrice") is not None
+            or info.get("regularMarketPreviousClose") is not None
+        ):
+            return True
+        history = ticker.history(period="5d", interval="1d", auto_adjust=True)
+        return not history.empty
+    except Exception:
+        return False
+
+
+def validate_ticker(symbol: str):
+    symbol = (symbol or "").strip().upper()
+    if not symbol:
+        return False, "Please enter a ticker symbol."
+
+    supported = is_supported_ticker(symbol)
+    fetchable = can_fetch_ticker(symbol)
+
+    if not supported and not fetchable:
+        return (
+            False,
+            f"Ticker '{symbol}' is not supported or cannot be found on Yahoo Finance. {SUPPORTED_EXCHANGE_MESSAGE}",
+        )
+    if not supported:
+        return (
+            False,
+            f"Ticker '{symbol}' is not on a supported exchange. {SUPPORTED_EXCHANGE_MESSAGE}",
+        )
+    if not fetchable:
+        return (
+            False,
+            f"Ticker '{symbol}' cannot be fetched from Yahoo Finance. Please verify the symbol.",
+        )
+
+    return True, ""
+
+
+def delete_tx(tid, conn):
+    try:
+        tid = int(tid)
+        # Fetch the transaction details before deleting
+        conn.execute(
+            "SELECT date, symbol, price, quantity, action, commission FROM FYP.Transaction WHERE transactionID = ?",
+            (tid,),
+        )
+        row = conn.fetchone()
+        if not row:
+            st.error("Transaction not found.")
+            return False
+        tx_date, symbol, price, quantity, action, commission = row
+
+        # Delete the transaction
+        conn.execute("DELETE FROM FYP.Transaction WHERE transactionID = ?", (tid,))
+
+        # Reverse the holdings update
+        holdings_df = fetch_holdings()
+        stock_events = fetch_stock_event()
+        if symbol not in stock_events["symbol"].values:
+            stock_events = get_events(conn, [symbol])
+
+        normalized_quantity, normalized_price = normalize_historical_transaction(
+            stock_events, symbol, tx_date, quantity, price
+        )
+
+        action_val = 1 - 2 * action  # buy -> 1, sell -> -1
+
+        if symbol in holdings_df["Symbol"].values:
+            current_quantity = holdings_df.loc[
+                holdings_df["Symbol"] == symbol, "Position"
+            ].item()
+            current_costbasis = holdings_df.loc[
+                holdings_df["Symbol"] == symbol, "Cost Basis"
+            ].item()
+
+            new_quantity = current_quantity - (action_val * normalized_quantity)
+            new_costbasis = current_costbasis - (
+                action_val * normalized_quantity * normalized_price
+                + action_val * commission
+            )
+
+            if abs(new_quantity) < 1e-6:
+                conn.execute("DELETE FROM FYP.Holding WHERE symbol = ?", (symbol,))
+            else:
+                conn.execute(
+                    "UPDATE FYP.Holding SET quantity=?, costBasis=? WHERE symbol=?",
+                    (new_quantity, new_costbasis, symbol),
+                )
+
+        return True
+    except (ValueError, mariadb.Error) as e:
+        st.error(f"Delete failed: {e}")
+        return False
 
 
 def insert_tx(form, conn):
