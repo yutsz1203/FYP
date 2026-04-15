@@ -21,7 +21,7 @@ rates_pivot = get_rates_pivot(rate_df)
 
 
 def get_portfolio_value(
-    assets, start, adjust=False, base_currency="USD"
+    assets, start, base_currency="USD", adjust=False
 ) -> pd.DataFrame:
     daily_holding_df = build_daily_holding()
     price_df = fetch_price(assets, start, adjust)

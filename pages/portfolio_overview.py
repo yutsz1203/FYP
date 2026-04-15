@@ -35,7 +35,7 @@ st.markdown(
 
 # Calculating Portfolio Value (Market Values of positions)
 start = get_start_date()
-portfolio_value = get_portfolio_value(assets, start, base_currency)
+portfolio_value = get_portfolio_value(assets, start, base_currency=base_currency)
 
 # Adjust time period for showing Portfolio Value
 start = adjust_period(start, period)
