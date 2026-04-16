@@ -1,3 +1,4 @@
+import time
 from datetime import date
 
 import numpy as np
@@ -5,7 +6,7 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
-from const import SECTOR_CASE_MAP
+from const import SECTOR_CASE_MAP, SESSION
 from src.fx import assign_currency, convert_to_base, get_rates_pivot
 
 from .db import (
@@ -219,8 +220,9 @@ def build_allocation(holding_df: pd.DataFrame) -> pd.DataFrame:
     multi = allocation[multi_mask]["Symbol"].tolist()
     tmp = []
     for etf in multi:
+        time.sleep(0.5)
         base = allocation.loc[allocation["Symbol"] == etf, "Market Value"].values[0]
-        weightings = yf.Ticker(etf).funds_data.sector_weightings
+        weightings = yf.Ticker(etf, session=SESSION).funds_data.sector_weightings
         for sector, weight in weightings.items():
             tmp.append(
                 {

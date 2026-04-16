@@ -1,4 +1,5 @@
-from datetime import date, datetime, timedelta
+import time
+from datetime import datetime, timedelta
 
 import altair as alt
 import pandas as pd
@@ -164,6 +165,7 @@ def fetch_price(tickers, start, fetch_type="initial") -> pd.DataFrame:
     else:
         rows = []
         for tick in tickers:
+            time.sleep(0.5)
             ticker = yf.Ticker(tick)
             price = ticker.info.get("regularMarketPrice")
             if price is None:
