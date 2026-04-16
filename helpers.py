@@ -135,6 +135,7 @@ def period_select_box(key, index=4):
     return period
 
 
+@st.cache_data(show_spinner=False)
 def fetch_price(tickers, start, fetch_type="initial") -> pd.DataFrame:
     if isinstance(tickers, str):
         tickers = [tickers]
